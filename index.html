@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>صالة البتول</title>
+    <!-- استدعاء خط "كايرو" العصري -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- استدعاء مكتبة قراءة الـ QR Code من الكاميرا -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- خلفية تفاعلية -->
+    <canvas id="interactiveCanvas"></canvas>
+
+    <div class="app-container">
+        <!-- الشريط العلوي النظيف -->
+        <header class="main-header glass-panel slide-down">
+            <div class="logo">
+                <i class="fa-solid fa-graduation-cap glow-icon"></i>
+                <span>صالة البتول</span>
+            </div>
+            <div class="header-controls">
+                <span id="liveClock" class="clock-badge">00:00:00</span>
+            </div>
+        </header>
+
+        <!-- ================= 1. واجهة الدخول الموحدة (للطلاب وللأدمن) ================= -->
+        <section id="loginSection" class="view-section fade-in">
+            <div class="glass-panel login-card">
+                <div class="card-icon"><i class="fa-solid fa-fingerprint"></i></div>
+                <h2>تسجيل الدخول</h2>
+                <p class="subtitle">يرجى إدخال الكود الرقمي الخاص بك</p>
+
+                <div class="form-group">
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-hashtag"></i>
+                        <input type="text" id="universalCodeInput" placeholder="أدخل الكود هنا..." autocomplete="off">
+                    </div>
+                </div>
+
+                <!-- حقل كلمة المرور للأدمن -->
+                <div class="form-group hidden" id="adminPasswordGroup">
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-lock"></i>
+                        <input type="password" id="adminPasswordInput" placeholder="أدخل كلمة مرور الأدمن..." autocomplete="off">
+                    </div>
+                </div>
+
+                <button class="btn-gradient universal-btn" onclick="processLogin()">
+                    دخول للمنصة <i class="fa-solid fa-arrow-left"></i>
+                </button>
+                <div id="loginError" class="error-msg hidden">الكود أو كلمة المرور غير صحيحة!</div>
+                
+                <!-- حقوق التطوير -->
+                <div class="developer-credit-login">
+                    تم الإنشاء بواسطة جرجس مجيد | GERGES MAGEED
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= 2. لوحة الطالب ================= -->
+        <section id="studentDashboardSection" class="view-section hidden fade-in">
+            <div class="dashboard-grid">
+                <aside class="sidebar glass-panel">
+                    <div class="profile-summary">
+                        <div class="avatar"><i class="fa-solid fa-user-astronaut"></i></div>
+                        <h3 id="studentNameDisplay">اسم الطالب</h3>
+                        <span id="studentCodeDisplay" class="code-badge">#CODE</span>
+                        
+                        <!-- الباركود الخاص بالطالب -->
+                        <div class="student-qr-container" style="margin-top: 15px; text-align: center;">
+                            <img id="studentQrImage" src="" alt="كود الطالب" style="width: 130px; height: 130px; border-radius: 8px; border: 3px solid #fff; padding: 5px; background: #fff; display: none; margin: 0 auto;">
+                            <p style="font-size: 0.8rem; color: rgba(255,255,255,0.7); margin-top: 8px;">أظهر هذا الكود لتسجيل الحضور</p>
+                        </div>
+                    </div>
+
+                    <nav class="sidebar-menu">
+                        <button class="menu-btn active" onclick="switchStudentTab('overview', this)"><i class="fa-solid fa-house"></i> الملخص والاشتراك</button>
+                        <button class="menu-btn" onclick="switchStudentTab('grades', this)"><i class="fa-solid fa-chart-line"></i> الدرجات والامتحانات</button>
+                        <button class="menu-btn" onclick="switchStudentTab('attendance', this)"><i class="fa-solid fa-calendar-check"></i> سجل الحضور</button>
+                        <button class="menu-btn danger" onclick="logoutUser()"><i class="fa-solid fa-power-off"></i> تسجيل خروج</button>
+                    </nav>
+                </aside>
+
+                <main class="main-content glass-panel">
+                    <div id="tab-overview" class="student-tab-content">
+                        <div class="section-header"><h3><i class="fa-solid fa-satellite-dish"></i> آخر الأخبار</h3></div>
+                        <div id="newsFeedContainer" class="news-feed"></div>
+
+                        <div class="section-header mt-30"><h3><i class="fa-solid fa-wallet"></i> حالة الاشتراك</h3></div>
+                        <div class="stats-cards-grid">
+                            <div class="stat-card">
+                                <span class="stat-label">حالة دفع الشهر</span>
+                                <div id="feeStatusBadge" class="stat-value">-</div>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-label">تاريخ الدفع</span>
+                                <div id="feePaymentDate" class="stat-value text-muted">-</div>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-label">إجمالي الحضور</span>
+                                <div id="totalAttendanceCount" class="stat-value text-accent">0</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="tab-grades" class="student-tab-content hidden">
+                        <div class="section-header"><h3><i class="fa-solid fa-award"></i> سجل الامتحانات</h3></div>
+                        <div class="table-responsive">
+                            <table class="modern-table">
+                                <thead><tr><th>اسم الامتحان</th><th>الدرجة</th><th>تاريخ ووقت الامتحان</th></tr></thead>
+                                <tbody id="studentGradesTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div id="tab-attendance" class="student-tab-content hidden">
+                        <div class="section-header"><h3><i class="fa-solid fa-list-check"></i> سجل الحضور والغياب</h3></div>
+                        <ul id="studentAttendanceList" class="attendance-timeline"></ul>
+                    </div>
+                </main>
+            </div>
+        </section>
+
+        <!-- ================= 3. لوحة التحكم (الأدمن) ================= -->
+        <section id="adminDashboardSection" class="view-section hidden fade-in">
+            <div class="dashboard-grid">
+                <aside class="sidebar glass-panel admin-theme">
+                    <div class="profile-summary">
+                        <div class="avatar" style="color:#f59e0b;"><i class="fa-solid fa-crown"></i></div>
+                        <h3>لوحة التحكم</h3>
+                        <span class="code-badge admin-badge">غرفة القيادة</span>
+                    </div>
+
+                    <nav class="sidebar-menu">
+                        <button class="menu-btn active" onclick="switchAdminTab('quick-attendance', this)"><i class="fa-solid fa-bolt"></i> حضور سريع</button>
+                        <button class="menu-btn" onclick="switchAdminTab('students', this)"><i class="fa-solid fa-users-gear"></i> إدارة الطلاب</button>
+                        <button class="menu-btn" onclick="switchAdminTab('news', this)"><i class="fa-solid fa-bullhorn"></i> نشر التنبيهات</button>
+                        <button class="menu-btn" onclick="switchAdminTab('backup', this)"><i class="fa-solid fa-cloud-arrow-down"></i> حماية البيانات</button>
+                        <button class="menu-btn" onclick="switchAdminTab('settings', this)"><i class="fa-solid fa-key"></i> تغيير كلمة المرور</button>
+                        <button class="menu-btn danger" onclick="logoutUser()"><i class="fa-solid fa-power-off"></i> إغلاق اللوحة</button>
+                    </nav>
+                </aside>
+
+                <main class="main-content glass-panel">
+                    <!-- أدمن: تسجيل الحضور السريع -->
+                    <div id="adminTab-quick-attendance" class="admin-tab-content">
+                        <div class="section-header"><h3><i class="fa-solid fa-bolt"></i> ماسح الحضور السريع والتلقائي</h3></div>
+                        
+                        <div class="scan-container">
+                            <div id="qr-reader" style="width: 100%; max-width: 400px; margin: 0 auto 15px auto; border-radius: 12px; overflow: hidden;"></div>
+                            
+                            <button class="btn-gradient w-100 mb-15" onclick="startQRScanner()"><i class="fa-solid fa-camera"></i> تشغيل كاميرا الـ QR</button>
+                            <button class="btn-outline success w-100 mb-15 hidden" id="captureQrBtn" onclick="captureAndSubmitAttendance()"><i class="fa-solid fa-camera-retro"></i> التقاط وتسجيل الحضور</button>
+                            <button class="btn-outline danger w-100 mb-15 hidden" id="stopQrBtn" onclick="stopQRScanner()"><i class="fa-solid fa-video-slash"></i> إيقاف الكاميرا</button>
+
+                            <hr style="border-color: rgba(255,255,255,0.1); margin: 15px 0;">
+
+                            <h4>أو أدخل الكود يدوياً / عبر قارئ اليد</h4>
+                            <input type="text" id="quickScanCode" placeholder="كود الطالب..." class="scan-input" autocomplete="off">
+                            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                                <button class="btn-gradient w-100" onclick="submitQuickAttendance('حضور')">حضور <i class="fa-solid fa-check"></i></button>
+                                <button class="btn-outline danger w-100" onclick="submitQuickAttendance('غياب')">غياب <i class="fa-solid fa-xmark"></i></button>
+                            </div>
+                            <div id="quickScanResult" class="scan-result"></div>
+                        </div>
+                    </div>
+
+                    <!-- أدمن: إدارة الطلاب -->
+                    <div id="adminTab-students" class="admin-tab-content hidden">
+                        <div class="section-header"><h3><i class="fa-solid fa-user-plus"></i> تسجيل طالب جديد</h3></div>
+                        <div class="admin-form-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">
+                            <input type="text" id="newStudentName" placeholder="اسم الطالب" class="modern-input">
+                            <input type="text" id="newStudentCode" placeholder="كود الطالب" class="modern-input">
+                            <input type="tel" id="newStudentPhone" placeholder="رقم هاتف الطالب" class="modern-input">
+                            <input type="tel" id="newStudentParentPhone" placeholder="رقم ولي الأمر" class="modern-input">
+                            <select id="newStudentGrade" class="modern-input">
+                                <option value="" disabled selected>-- اختر الصف --</option>
+                                <option value="الأول الإعدادي">الأول الإعدادي</option>
+                                <option value="الثاني الإعدادي">الثاني الإعدادي</option>
+                                <option value="الثالث الإعدادي">الثالث الإعدادي</option>
+                                <option value="الأول الثانوي">الأول الثانوي</option>
+                                <option value="الثاني الثانوي">الثاني الثانوي</option>
+                                <option value="الثالث الثانوي">الثالث الثانوي</option>
+                            </select>
+                            <button class="btn-gradient" onclick="addNewStudent()">إضافة طالب</button>
+                        </div>
+
+                        <div class="section-header flex-between mt-30">
+                            <h3><i class="fa-solid fa-users"></i> قاعدة بيانات الطلاب</h3>
+                            <input type="text" id="searchStudentInput" onkeyup="filterStudents()" placeholder="بحث بالاسم أو الكود..." class="search-input">
+                        </div>
+                        <div class="table-responsive">
+                            <table class="modern-table">
+                                <thead>
+                                    <tr>
+                                        <th>الكود</th>
+                                        <th>الاسم</th>
+                                        <th>الصف</th>
+                                        <th>الدفع</th>
+                                        <th>تفاصيل</th>
+                                        <th>واتساب</th>
+                                        <th>إجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="adminStudentsListTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- أدمن: نشر التنبيهات والأخبار -->
+                    <div id="adminTab-news" class="admin-tab-content hidden">
+                        <div class="section-header"><h3><i class="fa-solid fa-pen-to-square"></i> إذاعة خبر للطلاب</h3></div>
+                        <textarea id="newNewsText" rows="4" placeholder="اكتب التنبيه أو الخبر هنا..." class="modern-input w-100 mb-15" style="width: 100%; font-family: inherit; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.2); color: #fff;"></textarea>
+                        <button class="btn-gradient w-100" onclick="postNewNews()"><i class="fa-solid fa-paper-plane"></i> نشر التنبيه</button>
+
+                        <div class="section-header mt-30"><h3><i class="fa-solid fa-bullhorn"></i> الأخبار المنشورة حالياً</h3></div>
+                        <div id="adminNewsContainer"></div>
+                    </div>
+
+                    <!-- أدمن: حماية البيانات والنسخ الاحتياطي -->
+                    <div id="adminTab-backup" class="admin-tab-content hidden">
+                        <div class="section-header"><h3><i class="fa-solid fa-cloud-arrow-down"></i> حماية البيانات والنسخ الاحتياطي</h3></div>
+                        <div class="glass-panel" style="padding: 20px; text-align: center; border-radius: 12px;">
+                            <p style="margin-bottom: 20px; color: rgba(255,255,255,0.8);">يمكنك تحميل نسخة احتياطية من بيانات القراءة والدرجات والحضور أو استرجاع بيانات سابقة من ملف JSON.</p>
+                            <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+                                <button class="btn-gradient" onclick="exportData()"><i class="fa-solid fa-download"></i> تصدير نسخة احتياطية</button>
+                                <button class="btn-outline success" onclick="document.getElementById('importFile').click()"><i class="fa-solid fa-upload"></i> استرجاع ملف بيانات</button>
+                                <input type="file" id="importFile" class="hidden" accept=".json" style="display: none;" onchange="importData(event)">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- أدمن: إعدادات كلمة المرور -->
+                    <div id="adminTab-settings" class="admin-tab-content hidden">
+                        <div class="section-header"><h3><i class="fa-solid fa-key"></i> تغيير كلمة مرور الإدارة</h3></div>
+                        <div class="glass-panel" style="padding: 25px; border-radius: 12px; max-width: 500px; margin: 0 auto;">
+                            <p style="margin-bottom: 20px; color: rgba(255,255,255,0.8);">أدخل كلمة المرور الجديدة الخاصة باللوحة الرئيسية:</p>
+                            <div class="form-group mb-15" style="margin-bottom: 15px;">
+                                <input type="password" id="newAdminPasswordInput" placeholder="أدخل كلمة المرور الجديدة..." class="modern-input" style="width: 100%;">
+                            </div>
+                            <button class="btn-gradient w-100" onclick="changeAdminPassword()" style="width: 100%;">
+                                <i class="fa-solid fa-shield-halved"></i> تحديث كلمة المرور
+                            </button>
+                        </div>
+                    </div>
+                </main>
+            </div>
+        </section>
+    </div>
+
+    <!-- نافذة عرض بيانات وتفاصيل الطالب للادمن (Modal) -->
+    <div id="studentDetailsModal" class="modal-overlay hidden">
+        <div class="modal-card glass-panel fade-in">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-user-gear"></i> تفاصيل الطالب: <span id="detailStudentName" class="text-accent"></span></h3>
+                <button class="close-modal-btn" onclick="closeStudentDetailsModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="stats-cards-grid" style="margin-bottom: 20px;">
+                    <div class="stat-card">
+                        <span class="stat-label">الكود</span>
+                        <div id="detailStudentCode" class="stat-value" style="font-size: 1.1rem;">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">الصف الدراسي</span>
+                        <div id="detailStudentGrade" class="stat-value" style="font-size: 1rem;">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">عدد أيام الحضور</span>
+                        <div id="detailAttendanceCount" class="stat-value text-accent" style="font-size: 1.5rem; color: #10b981;">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">عدد أيام الغياب</span>
+                        <div id="detailAbsenceCount" class="stat-value text-danger" style="font-size: 1.5rem; color: #ef4444;">0</div>
+                    </div>
+                </div>
+
+                <div class="student-contact-info" style="margin-bottom: 20px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px;">
+                    <p style="margin-bottom: 8px;"><i class="fa-solid fa-phone"></i> <strong>رقم الطالب:</strong> <span id="detailStudentPhone">-</span></p>
+                    <p style="margin-bottom: 0;"><i class="fa-solid fa-person-shelter"></i> <strong>رقم ولي الأمر:</strong> <span id="detailParentPhone">-</span></p>
+                </div>
+
+                <button class="btn-gradient success w-100" id="sendWhatsappBtn" onclick="sendWhatsappToParent()">
+                    <i class="fa-brands fa-whatsapp" style="font-size: 1.2rem; margin-left: 5px;"></i> إرسال تقرير الطالب لولي الأمر عبر الواتساب
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة إضافة درجة (Modal) -->
+    <div id="addGradeModal" class="modal-overlay hidden">
+        <div class="modal-card glass-panel fade-in">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-star"></i> إضافة درجة لـ: <span id="modalGradeStudentName" class="text-accent"></span></h3>
+                <button class="close-modal-btn" onclick="closeGradeModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <label>اسم الامتحان / الاختبار</label>
+                <input type="text" id="modalExamTitle" class="modern-input mb-15" placeholder="مثال: اختبار الوحدة الأولى">
+                <label>الدرجة التي حصل عليها</label>
+                <input type="text" id="modalExamScore" class="modern-input mb-15" placeholder="مثال: 19/20">
+                <label>تاريخ ووقت الاختبار</label>
+                <input type="datetime-local" id="modalExamTime" class="modern-input mb-15">
+                <button class="btn-gradient w-100" onclick="saveGradeForStudent()">تسجيل الدرجة حفظاً</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- استدعاء ملف الجافاسكريبت الرئيسي المربوط بفايربيز -->
+    <script type="module" src="script.js"></script>
+</body>
+</html>
